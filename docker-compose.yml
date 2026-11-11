@@ -10,6 +10,10 @@ services:
       DB_PATH: /data/app.db
       # 应用容器内部访问示例站的地址（默认抓取网址）
       DEFAULT_START_URL: http://sample-site:8000/list.html?page=1
+      # 中标通知核对默认使用的公示目录网址
+      DEFAULT_PUBLICITY_URL: http://sample-site:8000/publicity.html?page=1
+      # 演示用拟发时间预填值（示例站数据集中在 2026-11）
+      DEFAULT_PROPOSED_TIME: "2026-11-15 10:00"
       # 把结果页中的内部网址改写成浏览器可访问的地址
       URL_REWRITE_FROM: http://sample-site:8000
       URL_REWRITE_TO: http://localhost:8080

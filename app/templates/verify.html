@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>中标通知发送前核对</title>
+  <style>
+    :root { --blue: #2c5f8a; --green: #1e7e34; --red: #b02a37; --orange: #a35f00; --gray: #6c757d; }
+    * { box-sizing: border-box; }
+    body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; max-width: 1080px; margin: 0 auto; padding: 1.5em 1em 3em; color: #2b2b2b; background: #fafbfc; }
+    h1 { color: var(--blue); margin-bottom: .2em; }
+    h2 { margin-top: 1.8em; border-left: 4px solid var(--blue); padding-left: .5em; font-size: 1.15em; }
+    .subtitle { color: var(--gray); margin-top: 0; }
+    form.scrape { display: flex; gap: .6em; margin: 1.2em 0; flex-wrap: wrap; align-items: stretch; }
+    form.scrape input[type=text], form.scrape input[type=datetime-local] { flex: 1 1 16em; padding: .55em .7em; border: 1px solid #c8d0d8; border-radius: 5px; font-size: 1em; }
+    form.scrape button { padding: .55em 1.6em; background: var(--blue); color: #fff; border: 0; border-radius: 5px; font-size: 1em; cursor: pointer; }
+    form.scrape button:hover { background: #234c6d; }
+    .banner { padding: .9em 1em; border-radius: 6px; margin: 1em 0; line-height: 1.7; }
+    .banner.ok { background: #e6f4ea; border: 1px solid #b7dfc2; color: var(--green); }
+    .banner.err { background: #fbe9eb; border: 1px solid #f1c2c8; color: var(--red); }
+    .banner.warn { background: #fff4e5; border: 1px solid #f0cf9a; color: var(--orange); }
+    .banner a, .issue-list a { color: inherit; word-break: break-all; }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border: 1px solid #e2e6ea; padding: .55em .7em; text-align: left; vertical-align: top; }
+    th { background: #f0f4f8; white-space: nowrap; }
+    .badge { display: inline-block; padding: .15em .7em; border-radius: 1em; font-size: .9em; color: #fff; white-space: nowrap; }
+    .badge.resolved { background: var(--green); }
+    .badge.unresolved { background: var(--red); }
+    .muted { color: var(--gray); font-size: .9em; }
+    .issue-list { margin: .4em 0 0; padding-left: 1.4em; }
+    .issue-list li { margin: .35em 0; line-height: 1.6; }
+    .empty { color: var(--gray); background: #fff; border: 1px dashed #c8d0d8; border-radius: 6px; padding: 1.2em; text-align: center; }
+    code { background: #eef1f4; padding: .1em .35em; border-radius: 4px; }
+    .summary { background: #fff; border: 1px solid #e2e6ea; border-radius: 6px; padding: .8em 1em; }
+    .summary dl { display: grid; grid-template-columns: 8em 1fr; gap: .35em 1em; margin: 0; }
+    .summary dt { color: #555; font-weight: bold; }
+    .summary dd { margin: 0; }
+  </style>
+</head>
+<body>
+  <p class="muted"><a href="/">← 返回截标时间核对</a></p>
+  <h1>中标通知发送前核对</h1>
+  <p class="subtitle">填写公示目录网址、标段号和拟发时间，核对公示期异议是否全部办结。</p>
+
+  <form class="scrape" method="post" action="/verify">
+    <input type="text" name="directory_url" value="{{ form.directory_url }}" placeholder="公示目录网址" required>
+    <input type="text" name="lot_no" value="{{ form.lot_no }}" placeholder="标段号，如 BD-2026-01" required>
+    <input type="datetime-local" name="proposed_time" step="60" value="{{ form.proposed_time }}" required>
+    <button type="submit">核对异议办结</button>
+  </form>
+
+  {% if form_error %}
+  <div class="banner err">{{ form_error }}</div>
+  {% endif %}
+
+  {% if result %}
+    {% if result.status == 'sendable' %}
+      {% set banner_class = 'ok' %}
+    {% elif result.status == 'cannot_verify' %}
+      {% set banner_class = 'err' %}
+    {% else %}
+      {% set banner_class = 'warn' %}
+    {% endif %}
+    <div class="banner {{ banner_class }}">
+      <strong>核对结论：{{ result.status_label }}</strong>
+      {% if result.status == 'sendable' %}
+        <br>拟发时间 {{ result.proposed_time }} 晚于该标段公示异议期截止时间
+        {{ result.objection_deadline }}，且 {{ result.objections|length }} 项相关异议均已办结。
+      {% elif result.status == 'not_sendable' %}
+        <br>尚不能发送中标通知，请先处理下列事项。
+      {% else %}
+        <br>存在抓取失败或关联详情缺失，无法确认全部异议均已办结，请核对下列问题网址。
+      {% endif %}
+    </div>
+
+    <div class="summary">
+      <dl>
+        <dt>标段号</dt><dd><strong>{{ result.lot_no }}</strong></dd>
+        <dt>拟发时间</dt><dd>{{ result.proposed_time }}</dd>
+        <dt>公示目录</dt><dd><a href="{{ result.directory_url|public_url }}" target="_blank" rel="noopener">{{ result.directory_url|public_url }}</a></dd>
+        <dt>候选人公示</dt>
+        <dd>
+          {% if result.publicity %}
+            {{ result.publicity.notice_no }}（发布时间 {{ result.publicity.publish_time }}）
+            <a href="{{ result.publicity.url|public_url }}" target="_blank" rel="noopener">来源</a>
+          {% else %}未找到适用的候选人公示{% endif %}
+        </dd>
+        <dt>异议期截止时间</dt><dd>{{ result.objection_deadline or '未找到' }}</dd>
+        <dt>时间条件</dt><dd>{{ '拟发时间晚于异议期截止时间' if result.time_after_deadline else '拟发时间未晚于异议期截止时间' }}</dd>
+        <dt>记录统计</dt>
+        <dd class="muted">抓取 {{ result.record_count }} 条记录，其中 {{ result.usable_record_count }} 条发布时间不晚于拟发时间；{{ result.list_pages|length }} 个目录页、{{ result.detail_pages|length }} 个详情页。</dd>
+      </dl>
+    </div>
+
+    {% if result.problems %}
+      <h2>无法核定的问题</h2>
+      <div class="banner err">
+        <ul class="issue-list">
+          {% for p in result.problems %}
+          <li>{{ p.message }}
+            {% if p.url %}— 问题网址：<a href="{{ p.url|public_url }}" target="_blank" rel="noopener">{{ p.url|public_url }}</a>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% if result.status == 'not_sendable' %}
+      <h2>未办结事项 / 未满足条件</h2>
+      <div class="banner warn">
+        {% if result.blockers %}
+        <ul class="issue-list">
+          {% for b in result.blockers %}
+          <li>{{ b.message }}
+            {% if b.url %}— 来源：<a href="{{ b.url|public_url }}" target="_blank" rel="noopener">{{ b.url|public_url }}</a>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p>无可列事项。</p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <h2>相关异议核对明细</h2>
+    {% if result.objections %}
+    <table>
+      <thead>
+        <tr><th>异议编号</th><th>受理时间</th><th>异议来源</th><th>办结状态</th><th>办结来源</th></tr>
+      </thead>
+      <tbody>
+        {% for o in result.objections %}
+        <tr>
+          <td><strong>{{ o.objection_no }}</strong></td>
+          <td>{{ o.accept_time }}</td>
+          <td><a href="{{ o.source_url|public_url }}" target="_blank" rel="noopener">查看受理详情</a></td>
+          <td>
+            {% if o.resolved %}<span class="badge resolved">已办结</span>
+            {% else %}<span class="badge unresolved">未办结</span>{% endif %}
+          </td>
+          <td>
+            {% if o.resolutions %}
+              {% for r in o.resolutions %}
+                {{ r.notice_no }}（发布 {{ r.publish_time }}{% if r.resolve_time %}，办结 {{ r.resolve_time }}{% endif %}）
+                <a href="{{ r.url|public_url }}" target="_blank" rel="noopener">来源</a>{% if not loop.last %}<br>{% endif %}
+              {% endfor %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">该标段在异议期内没有需要核对的相关异议（按发布时间与受理时间筛选）。</div>
+    {% endif %}
+
+    {% if result.ignored_objections %}
+    <h2>按规则未纳入核对的异议</h2>
+    <table>
+      <thead><tr><th>异议编号</th><th>未纳入原因</th><th>来源</th></tr></thead>
+      <tbody>
+        {% for o in result.ignored_objections %}
+        <tr>
+          <td>{{ o.objection_no or '—' }}</td>
+          <td>{{ o.reason }}</td>
+          <td><a href="{{ o.url|public_url }}" target="_blank" rel="noopener">查看详情</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if result.errors %}
+    <h2>抓取失败页面</h2>
+    <table>
+      <thead><tr><th>阶段</th><th>问题网址</th><th>原因</th></tr></thead>
+      <tbody>
+        {% for e in result.errors %}
+        <tr>
+          <td>{% if e.phase == 'list' %}目录页{% else %}详情页{% endif %}</td>
+          <td><a href="{{ e.url|public_url }}" target="_blank" rel="noopener">{{ e.url|public_url }}</a></td>
+          <td>{{ e.message }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  {% else %}
+    <div class="empty">
+      输入公示目录网址、标段号和拟发时间后点击“核对异议办结”。<br>
+      示例站默认目录：<code>{{ default_publicity_url }}</code>；可核对标段 <code>BD-2026-01</code>（可发送）、
+      <code>BD-2026-02</code>（有未办结异议）、<code>BD-2026-04</code>（关联详情缺失，无法核定）。
+    </div>
+  {% endif %}
+</body>
+</html>

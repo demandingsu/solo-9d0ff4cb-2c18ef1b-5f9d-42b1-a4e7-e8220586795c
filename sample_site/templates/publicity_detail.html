@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>{{ r.title }}（{{ r.notice_no }}）</title>
+  <style>
+    body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; max-width: 900px; margin: 2em auto; padding: 0 1em; color: #333; }
+    h1 { color: #2c5f8a; }
+    dl.notice-fields { display: grid; grid-template-columns: 9em 1fr; gap: .4em 1em; background: #f7f9fb; padding: 1em; border-radius: 6px; }
+    dl.notice-fields dt { font-weight: bold; color: #555; }
+    dl.notice-fields dd { margin: 0; }
+    .notice-body { margin: 1.5em 0; line-height: 1.8; }
+  </style>
+</head>
+<body>
+  <div class="notice" data-notice-type="{{ r.type }}">
+    <h1>{{ r.type_label }}</h1>
+    <h2>{{ r.title }}</h2>
+    <dl class="notice-fields">
+      <dt>公告编号</dt><dd id="notice-no">{{ r.notice_no }}</dd>
+      {% if r.lot_no %}<dt>标段号</dt><dd id="lot-no">{{ r.lot_no }}</dd>{% endif %}
+      <dt>发布时间</dt><dd id="publish-time">{{ r.publish_time }}</dd>
+      {% if r.type == 'candidate_publicity' %}
+        <dt>异议期截止时间</dt><dd id="objection-deadline">{{ r.objection_deadline }}</dd>
+      {% elif r.type == 'objection_acceptance' %}
+        <dt>异议编号</dt><dd id="objection-no">{{ r.objection_no }}</dd>
+        <dt>受理时间</dt><dd id="accept-time">{{ r.accept_time }}</dd>
+      {% elif r.type == 'objection_resolution' %}
+        <dt>引用异议编号</dt><dd id="objection-no">{{ r.objection_no }}</dd>
+        {% if r.resolve_time %}<dt>办结时间</dt><dd id="resolve-time">{{ r.resolve_time }}</dd>{% endif %}
+      {% endif %}
+    </dl>
+    <div class="notice-body">{{ r.body }}</div>
+    <p><a href="/publicity.html?page=1">返回公示目录</a> · <a href="/list.html?page=1">招标公告列表</a></p>
+  </div>
+</body>
+</html>
